@@ -1,7 +1,7 @@
-# From https://github.com/bckenstler/CLR
 from keras.callbacks import *
+import numpy as np
 
-class CyclicLR(Callback):
+class CyclicLR2(Callback):
     """This callback implements a cyclical learning rate policy (CLR).
     The method cycles the learning rate between two boundaries with
     some constant frequency, as detailed in this paper (https://arxiv.org/abs/1506.01186).
@@ -58,11 +58,31 @@ class CyclicLR(Callback):
             Defines whether scale_fn is evaluated on 
             cycle number or cycle iterations (training
             iterations since start of cycle). Default is 'cycle'.
+        reduce_on_plateau (int): LR will be reduced after this many
+                                 epochs with no improvement on validation loss.
+                                 If zero or None, no reduction will take place
+        reduce_factor(int):      LR is reduced by this factor (e.g., 2 = 1/2  = 0.5)
+        monitor (str):           Value to monitor when reducing LR
+        max_momentum(float):     maximum momentum when momentum is cycled 
+                                 If both max_momentum and min_momentum is None,
+                                 default momentum for Adam is used.
+                                 (only used if optimizer is Adam)
+        min_momentum(float):     minimum momentum when momentum is cycled
+                                 If both max_momentum and min_momentum is None,
+                                 default momentum for Adam is used.
+                                 (only used if optimizer is Adam)
+        verbose (bool):          If True, will print information on LR reduction
+    References:
+        Original Paper: https://arxiv.org/abs/1803.09820
+        Blog Post: https://sgugger.github.io/the-1cycle-policy.html
+        Code Reference: https://github.com/bckenstler/CLR and https://github.com/amaiya/ktrain
     """
 
     def __init__(self, base_lr=0.001, max_lr=0.006, step_size=2000., mode='triangular',
-                 gamma=1., scale_fn=None, scale_mode='cycle'):
-        super(CyclicLR, self).__init__()
+                 gamma=1., scale_fn=None, scale_mode='cycle', 
+                 reduce_on_plateau=0, monitor='val_loss', reduce_factor=2, 
+                 max_momentum=0.95, min_momentum=0.85, verbose=1):
+        super(Callback, self).__init__()
 
         self.base_lr = base_lr
         self.max_lr = max_lr
@@ -86,7 +106,35 @@ class CyclicLR(Callback):
         self.trn_iterations = 0.
         self.history = {}
 
+        # restoring weights due to CRF bug
+        self.best_weights = None
+
+        # LR reduction
+        self.verbose = verbose
+        self.patience = reduce_on_plateau
+        self.factor = 1./reduce_factor
+        self.monitor = monitor
+        if 'acc' not in self.monitor:
+            self.monitor_op = lambda a, b: np.less(a, b)
+            self.best = np.Inf
+        else:
+            self.monitor_op = lambda a, b: np.greater(a, b)
+            self.best = -np.Inf
+
+        # annihalting LR
+        self.overhump = False
+
+        # cyclical momentum
+        self.max_momentum = max_momentum
+        self.min_momentum = min_momentum
+        if self.min_momentum is None and self.max_momentum:
+            self.min_momentum = self.max_momentum
+        elif self.min_momentum and self.max_momentum is None:
+            self.max_momentum = self.min_momentum
+        self.cycle_momentum = True if self.max_momentum is not None else False
+
         self._reset()
+
 
     def _reset(self, new_base_lr=None, new_max_lr=None,
                new_step_size=None):
@@ -116,8 +164,10 @@ class CyclicLR(Callback):
             K.set_value(self.model.optimizer.lr, self.base_lr)
         else:
             K.set_value(self.model.optimizer.lr, self.clr())        
-            
-    def on_batch_end(self, epoch, logs=None):
+
+        self.orig_base_lr = self.base_lr
+
+    def on_batch_end(self, batch, logs=None):
         
         logs = logs or {}
         self.trn_iterations += 1
@@ -130,3 +180,56 @@ class CyclicLR(Callback):
             self.history.setdefault(k, []).append(v)
         
         K.set_value(self.model.optimizer.lr, self.clr())
+
+        # annihilate learning rate
+        prev_overhump = self.overhump
+        iterations = (self.clr_iterations+1) % (self.step_size*2)
+        if iterations/self.step_size > 1: 
+            self.overhump = True
+        else:
+            self.overhump = False
+        if not prev_overhump and self.overhump:
+            self.base_lr = self.max_lr/1000
+        elif prev_overhump and not self.overhump:
+            self.base_lr = self.orig_base_lr
+
+        # set momentum
+        if self.cycle_momentum:
+            if self.overhump:
+                current_percentage = 1. - ((iterations - self.step_size) / float(
+                                            self.step_size))
+                new_momentum = self.max_momentum - current_percentage * (
+                    self.max_momentum - self.min_momentum)
+            else:
+                current_percentage = iterations / float(self.step_size)
+                new_momentum = self.max_momentum - current_percentage * (
+                    self.max_momentum - self.min_momentum)
+            K.set_value(self.model.optimizer.beta_1, new_momentum)
+            self.history.setdefault('momentum', []).append(K.get_value(self.model.optimizer.beta_1))
+
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.patience:
+            current = logs.get(self.monitor)
+            if current is None:
+                raise Exception('cannot monitor %s' % (self.monitor))
+            if self.monitor_op(current, self.best):
+                self.best = current
+                self.wait = 0
+                if crf:
+                    self.best_weights = self.model.get_weights()
+            else:
+                self.wait += 1
+                if self.wait >= self.patience:
+                    min_lr = 1e-7
+                    current_lr = float(K.get_value(self.model.optimizer.lr))
+                    if self.max_lr > min_lr:
+                        self.base_lr = self.base_lr * self.factor
+                        self.max_lr = self.max_lr * self.factor
+                        new_lr = current_lr * self.factor
+                        new_lr = max(new_lr, min_lr)
+                        K.set_value(self.model.optimizer.lr, new_lr)
+                        if self.verbose:
+                            print('\nEpoch %05d: Reducing Max LR on Plateau: '
+                                  'new max lr will be %s (if not early_stopping).' % (epoch + 1, self.max_lr))
+                        self.wait = 0
