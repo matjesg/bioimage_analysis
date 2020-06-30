@@ -10,6 +10,11 @@ Furthermore, we will also provide two entire bioimage datasets (Lab-Wue1 and Lab
 
 ## Local installation
 
+To reproduce our experiments a Python (>= 3.6) installation is required. Run the following code to set up the environment
+```
 git clone https://github.com/matjesg/bioimage_analysis.git
+cd bioimage_analysis
 pip install requirements.txt
-See the [TensorFlow install guide](https://www.tensorflow.org/install)
+```
+
+The code requires a TensorFlow 1 installation (tested on TensorFlow 1.14.0 and 1.15.2). For more information see the [TensorFlow install guide](https://www.tensorflow.org/install).
