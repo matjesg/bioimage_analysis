@@ -1,3 +1,7 @@
+# Bioimage folders
+bioimage_data/
+model_library/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
