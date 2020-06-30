@@ -52,7 +52,7 @@ class Unet2D:
             self.testModel.load_weights(snapshot)
 
     def _weighted_categorical_crossentropy(self, y_true, y_pred, weights):
-        return tf.losses.softmax_cross_entropy(y_true, y_pred, weights=weights, reduction=tf.losses.Reduction.MEAN)
+        return tf.compat.v1.losses.softmax_cross_entropy(y_true, y_pred, weights=weights, reduction=tf.compat.v1.losses.Reduction.MEAN)
 
     def _createModel(self, training):
         
@@ -140,10 +140,10 @@ class Unet2D:
             model.add_loss(self._weighted_categorical_crossentropy(
                 labels, score, weights))
             model.compile(optimizer=self.opt, loss=None)#, metrics=[tf.keras.metrics.Recall()])
-            for m in self.metrics:
-                model.metrics_tensors.append(m(labels, softmax_score))
-                model.metrics_names.append(m.__name__)
-                #model.metrics_names.append(m.name)
+            #for m in self.metrics:
+            #    model.metrics_tensors.append(m(labels, softmax_score))
+            #    model.metrics_names.append(m.__name__)
+            #    #model.metrics_names.append(m.name)
             
         else:
             model = keras.Model(inputs=data, outputs=softmax_score)
