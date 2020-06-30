@@ -1,4 +1,11 @@
-from keras.callbacks import *
+"""
+Code adopted from 
+
+https://github.com/bckenstler/CLR
+"""
+
+from tensorflow.keras.callbacks import *
+from tensorflow.keras import backend as K
 import numpy as np
 
 class CyclicLR(Callback):

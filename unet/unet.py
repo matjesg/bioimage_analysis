@@ -1,3 +1,19 @@
+"""
+Code adopted from 
+
+Falk, Thorsten, et al.
+"U-Net: deep learning for cell counting, detection, and morphometry." 
+Nature methods 16.1 (2019): 67-70.
+
+and
+
+Maiya, Arun S. 
+"ktrain: A Low-Code Library for Augmented Machine Learning." 
+arXiv preprint arXiv:2004.10703 (2020).
+https://github.com/amaiya/ktrain
+"""
+
+
 import keras
 from keras.layers import Input, Conv2D, Conv2DTranspose, LeakyReLU, MaxPooling2D, Concatenate, Dropout, BatchNormalization, Dropout, Cropping2D, UpSampling2D
 import keras.optimizers
@@ -9,7 +25,6 @@ import numpy as np
 import os
 from tqdm import tqdm
 from time import time
-from . import metrics
 from .callbacks import CyclicLR
 import pdb
 
@@ -33,13 +48,6 @@ class Unet2D:
         self.name = name
         self.decay = decay
         self.bn_skip = bn_skip
-        self.metrics = [metrics.recall,
-                        metrics.precision,
-                        metrics.f1,
-                        metrics.iou,
-                        metrics.mcor,
-                        #tf.keras.metrics.MeanIoU(num_classes=2, name="my_MeanIoU")
-        ]
 
         self.opt = keras.optimizers.Adam(lr=0.00001, beta_1=0.9, beta_2=0.999, decay=self.decay, amsgrad=False)
         self.trainModel, self.padding = self._createModel(True)
@@ -55,10 +63,6 @@ class Unet2D:
 
     def _createModel(self, training):
         
-        #config = tf.ConfigProto()
-        #config.gpu_options.per_process_gpu_memory_fraction = 1
-        #config.gpu_options.visible_device_list = "0"
-        #K.set_session(tf.Session(config=config))
 
         data = keras.layers.Input(shape=(None, None, self.n_channels), name="data")
 
@@ -138,11 +142,7 @@ class Unet2D:
                 inputs=[data, labels, weights], outputs=softmax_score)
             model.add_loss(self._weighted_categorical_crossentropy(
                 labels, score, weights))
-            model.compile(optimizer=self.opt, loss=None)#, metrics=[tf.keras.metrics.Recall()])
-            #for m in self.metrics:
-            #    model.metrics_tensors.append(m(labels, softmax_score))
-            #    model.metrics_names.append(m.__name__)
-            #    #model.metrics_names.append(m.name)
+            model.compile(optimizer=self.opt, loss=None)
             
         else:
             model = keras.Model(inputs=data, outputs=softmax_score)
@@ -253,81 +253,3 @@ class Unet2D:
                 softmax_score[0], axis=-1)[inSlice]
 
         return smscores, segmentations
-    
-    # from https://github.com/amaiya/ktrain/blob/24ec38b355f0e4decc5077194fcccfc2f1232cb2/ktrain/text/learner.py
-    def set_weight_decay(self, wd=0.005):
-        """
-        Sets global weight decay layer-by-layer using L2 regularization.
-        Args:
-          wd(float): weight decay (see note above)
-        Returns:
-          None
-              
-        """
-
-        for layer in self.trainModel.layers:
-            if hasattr(layer, 'kernel_regularizer') and hasattr(layer, 'kernel'):
-                layer.kernel_regularizer= regularizers.l2(wd)
-                layer.add_loss(regularizers.l2(wd)(layer.kernel))
-
-            if hasattr(layer, 'bias_regularizer') and hasattr(layer, 'bias'):
-                layer.bias_regularizer= regularizers.l2(wd)
-                layer.add_loss(regularizers.l2(wd)(layer.bias))
-        
-        self._recompile()
-        return
-    
-    def _recompile(self):
-        self.trainModel.compile(optimizer=self.opt, loss=None)
-        
-        labels = self.trainModel.input[1]
-        softmax_score = self.trainModel.layers[-1].output
-        for m in self.metrics:
-            self.trainModel.metrics_tensors.append(m(labels, softmax_score))
-            self.trainModel.metrics_names.append(m.__name__)
-        return   
-    
-    def freeze(self, freeze_range=None):
-        """
-        If freeze_range is None, makes all layers trainable=False except last layer.
-        If freeze_range is given, freezes the first <freeze_range> layers and
-        unfrezes all remaining layers.
-        Args:
-            freeze_range(int): number of layers to freeze
-        Returns:
-            None
-        """
-
-        if freeze_range is None:
-            # freeze everything except last layer
-            for layer in self.trainModel.layers:
-                if layer.name != 'conv_u0d-score': 
-                    #print(layer.name)
-                    layer.trainable=False
-                    
-        else:
-            # freeze all layers up to and including layer_id
-            if type(freeze_range) != type(1) or freeze_range <1: 
-                raise ValueError('freeze_range must be integer > 0')
-            for i, layer in enumerate(self.trainModel.layers):
-                if i < freeze_range: 
-                    layer.trainable=False
-                else:
-                    layer.trainable=True
-        self._recompile()
-        return    
-    
-    # https://github.com/amaiya/ktrain/blob/55e00d850b8dc43adcca64d0bb4f3f00c283c907/ktrain/core.py#L262 
-    def unfreeze(self, exclude_range=None):
-        """
-        Make every layer trainable except those in exclude_range.
-        unfreeze is simply a proxy method to freeze.
-        """
-        # make all layers trainable
-        for i, layer in enumerate(self.trainModel.layers):
-            layer.trainable = True
-        if exclude_range:
-            for i, layer in enumerate(self.trainModel.layers[:exclude_range]):
-                layer.trainable = False
-        self._recompile()
-        return

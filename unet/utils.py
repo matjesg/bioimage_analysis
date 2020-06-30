@@ -1,8 +1,5 @@
 """
-U-Net
 Common utility functions and classes.
-Licensed under the MIT License (see LICENSE for details)
-Written by Matthias Griebel
 """
 
 import numpy as np
@@ -60,7 +57,7 @@ def label_mask(mask, threshold=0.5, min_pixel=15, do_watershed=False, exclude_bo
 
 
 ############################################################
-#  IOU (faster)
+#  IOU
 ############################################################
 
 def iou(a,b,threshold=0.5):

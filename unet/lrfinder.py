@@ -1,3 +1,13 @@
+"""
+Code adopted from 
+
+Maiya, Arun S. 
+"ktrain: A Low-Code Library for Augmented Machine Learning." 
+arXiv preprint arXiv:2004.10703 (2020).
+https://github.com/amaiya/ktrain
+"""
+
+
 from matplotlib import pyplot as plt
 import math
 from keras.callbacks import LambdaCallback
