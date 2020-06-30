@@ -1,6 +1,8 @@
 # Bioimage folders
 bioimage_data/
 model_library/
+_cp/
+pred_masks/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
