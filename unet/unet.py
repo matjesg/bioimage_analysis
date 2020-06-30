@@ -11,7 +11,6 @@ from tqdm import tqdm
 from time import time
 from . import metrics
 from .callbacks import CyclicLR
-from .callbacks2 import CyclicLR2
 import pdb
 
 
@@ -151,50 +150,7 @@ class Unet2D:
         return model, int(pad)
 
 
-    def train(self, sample_generator, validation_generator=None,
-              n_epochs=100, snapshot_interval=1, lr=None, initial_epoch=0,
-              snapshot_dir= 'checkpoints', snapshot_prefix=None,
-              log_dir = 'logs', cyclic_lr= None, scheduler=None, step_muliplier=1):
-
-        callbacks = [TensorBoard(
-            log_dir= log_dir + "/{}-{}".format(self.name, time()))]
-        if snapshot_prefix is not None:
-            if not os.path.isdir(snapshot_dir):
-                os.makedirs(snapshot_dir)
-            c_path = os.path.join(
-                snapshot_dir, (snapshot_prefix if snapshot_prefix is not None else self.name))
-            callbacks.append(ModelCheckpoint(
-                c_path + ".{epoch:04d}.h5", mode='auto', period=snapshot_interval))
-        if cyclic_lr is not None:
-            max_momentum = 0.95
-            min_momentum = 0.85
-            epochs = n_epochs-initial_epoch
-            #pdb.set_trace()
-            clr = CyclicLR(base_lr=lr/10, max_lr=lr,
-                           # step_size=math.ceil((steps_per_epoch*epochs)/2), 
-                           step_size=np.ceil((len(sample_generator)*epochs)/2), 
-                           mode=cyclic_lr
-                           #reduce_on_plateau=0,
-                           #max_momentum=max_momentum,
-                           #min_momentum=min_momentum,
-                           #verbose=1
-                          )
-            callbacks.append(clr)
-            #callbacks.append(CyclicLR(base_lr=0.00001, 
-            #                           max_lr=0.0001, 
-            #                           step_size=750., # Authors suggest setting step_size = (2-8) x (training iterations in epoch=63)
-            #                           mode=cyclic_lr))
-        if scheduler is not None:
-            callbacks.append(LearningRateScheduler(scheduler, verbose=1))
-        
-        self.trainModel.fit_generator(sample_generator,
-                                      steps_per_epoch=len(sample_generator)*step_muliplier,
-                                      epochs=n_epochs,
-                                      initial_epoch = initial_epoch,
-                                      validation_data=validation_generator,
-                                      nb_val_samples = len(validation_generator) if validation_generator is not None else None,
-                                      verbose=1,
-                                      callbacks=callbacks)
+  
         
     def fit_one_cycle(self, train_generator, final_epoch, max_lr, 
                       initial_epoch=0,
@@ -251,7 +207,7 @@ class Unet2D:
         steps_per_epoch = np.ceil(num_samples/train_generator.batch_size)*step_muliplier
         epochs = final_epoch-initial_epoch   
         clr_fn = lambda x: 0.5*(1+np.sin(x*np.pi/2.))
-        clr = CyclicLR2(base_lr=max_lr/10, max_lr=max_lr,
+        clr = CyclicLR(base_lr=max_lr/10, max_lr=max_lr,
                        step_size=np.ceil((steps_per_epoch*epochs)/2), # Authors suggest setting step_size = (2-8) x (training iterations in epoch=63)
                        scale_fn=clr_fn,
                        reduce_on_plateau=0,
