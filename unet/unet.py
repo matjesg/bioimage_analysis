@@ -41,7 +41,7 @@ class Unet2D:
                         #tf.keras.metrics.MeanIoU(num_classes=2, name="my_MeanIoU")
         ]
 
-        self.opt = keras.optimizers.Adam(lr=0.00001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=self.decay, amsgrad=False)
+        self.opt = keras.optimizers.Adam(lr=0.00001, beta_1=0.9, beta_2=0.999, decay=self.decay, amsgrad=False)
         self.trainModel, self.padding = self._createModel(True)
         self.testModel, _ = self._createModel(False)
 
