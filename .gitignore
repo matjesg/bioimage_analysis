@@ -1,8 +1,10 @@
 # Bioimage folders
+_KO_DATA/
 bioimage_data/
 model_library/
 source_data/
 _cp/
+_zips/
 pred_masks/
 test_data/
 
