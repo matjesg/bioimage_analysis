@@ -11,6 +11,8 @@ from skimage.measure import label
 from skimage.segmentation import relabel_sequential
 from skimage.morphology import watershed
 from scipy.optimize import linear_sum_assignment
+from skimage.measure import regionprops_table
+import pandas as pd
 import tensorflow as tf
 import SimpleITK as sitk
 
@@ -128,3 +130,38 @@ def staple(segmentations, foregroundValue = 1, threshold = 0.5):
     STAPLE_probabilities = sitk.STAPLE(segmentations) 
     STAPLE = STAPLE_probabilities > threshold
     return sitk.GetArrayViewFromImage(STAPLE)
+
+
+############################################################
+#  Measure regions and return region props
+############################################################
+
+def measure_rois(mask, image,file_id, threshold=0.5, min_pixel=30, 
+                 properties = ['mean_intensity', 'label', 'area']):
+    'Measure regions and return region properties'
+    
+    if mask.ndim == 3:
+        mask = np.squeeze(mask, axis=2)
+
+    # apply threshold to mask
+    bw = (mask > threshold).astype(int)
+
+    # label image regions
+    label_image = label(bw, connectivity=2) # Falk p.13, 8-“connectivity”.
+
+    # remove areas < min pixel   
+    unique, counts = np.unique(label_image, return_counts=True)
+    label_image[np.isin(label_image, unique[counts<min_pixel])] = 0
+    
+    # re-label image
+    label_image, _ , _ = relabel_sequential(label_image, offset=1)  
+    
+    # measure region props
+    if label_image.max()>0:
+        props_inner = regionprops_table(label_image, image, properties=properties)
+        df = pd.DataFrame(props_inner)
+    else:
+        df = pd.DataFrame(np.nan,index=[0],columns=properties)
+         
+    df['Nummer'] = file_id 
+    return(df)
