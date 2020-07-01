@@ -215,15 +215,23 @@ class Unet2D:
                        min_momentum=min_momentum,
                        verbose=verbose)
         callbacks.append(clr)
+
         
-        hist = self.trainModel.fit_generator(train_generator,
-                                      steps_per_epoch=steps_per_epoch,
-                                      epochs=final_epoch,
-                                      initial_epoch = initial_epoch,
-                                      validation_data=validation_generator,
-                                      nb_val_samples = len(validation_generator) if validation_generator is not None else None,
-                                      verbose=verbose,
-                                      callbacks=callbacks)
+        hist = self.trainModel.fit_generator(
+                                        train_generator,
+                                        steps_per_epoch=steps_per_epoch,
+                                        epochs=final_epoch,
+                                        verbose=verbose,
+                                        callbacks=callbacks,
+                                        validation_data=validation_generator,
+                                        validation_steps=len(validation_generator) if validation_generator is not None else None,
+                                        class_weight=None,
+                                        #max_queue_size=10,
+                                        #workers=1,
+                                        #use_multiprocessing=False,
+                                        shuffle=True,
+                                        initial_epoch=initial_epoch
+                                    )
         
         hist.history['lr'] = clr.history['lr']
         hist.history['iterations'] = clr.history['iterations']
