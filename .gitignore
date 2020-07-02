@@ -7,6 +7,7 @@ _cp/
 _zips/
 pred_masks/
 test_data/
+DeepFLaSH/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
