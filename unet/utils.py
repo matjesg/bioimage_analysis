@@ -13,7 +13,6 @@ from skimage.morphology import watershed
 from scipy.optimize import linear_sum_assignment
 from skimage.measure import regionprops_table
 import pandas as pd
-import tensorflow as tf
 import SimpleITK as sitk
 
 ############################################################
