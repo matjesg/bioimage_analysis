@@ -162,5 +162,5 @@ def measure_rois(mask, image,file_id, threshold=0.5, min_pixel=30,
     else:
         df = pd.DataFrame(np.nan,index=[0],columns=properties)
          
-    df['Nummer'] = file_id 
+    df['ID'] = file_id 
     return(df)
