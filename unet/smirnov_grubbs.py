@@ -1,7 +1,8 @@
 """
-Smirnov-Grubbs test for outlier detection.
+smirnov_grubbs.py
 
-code adopted from https://github.com/c-bata/outlier-utils
+Smirnov-Grubbs test for outlier detection.
+Code adapted from https://github.com/c-bata/outlier-utils
 """
 
 import numpy as np

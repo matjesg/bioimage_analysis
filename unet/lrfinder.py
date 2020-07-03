@@ -1,6 +1,7 @@
 """
-Code adopted from 
+lrfinder.py
 
+Code adapted from 
 https://github.com/surmenok/keras_lr_finder
 """
 
